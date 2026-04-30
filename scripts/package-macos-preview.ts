@@ -28,6 +28,10 @@ const tscPath = join(repoRoot, 'node_modules', '.bin', 'tsc');
 const appResourcesPath = join(appPath, 'Contents', 'Resources', 'app');
 const appExecutablePath = join(appPath, 'Contents', 'MacOS', appName);
 const defaultElectronExecutablePath = join(appPath, 'Contents', 'MacOS', 'Electron');
+const bundleIconFile = 'repoprompt-cockpit.icns';
+const logoPngPath = join(repoRoot, 'src', 'renderer', 'assets', 'repoprompt-cockpit-logo.png');
+const bundleIconPath = join(appPath, 'Contents', 'Resources', bundleIconFile);
+const iconsetPath = join(workRoot, 'repoprompt-cockpit.iconset');
 const version = packageMetadata.version;
 const zipPath = join(releaseRoot, `${appName}-${version}-mac-${artifactArch}.zip`);
 const dmgPath = join(releaseRoot, `${appName}-${version}-mac-${artifactArch}.dmg`);
@@ -71,6 +75,7 @@ function updateInfoPlist(): void {
   const replacements: Record<string, string> = {
     CFBundleDisplayName: appName,
     CFBundleExecutable: appName,
+    CFBundleIconFile: bundleIconFile,
     CFBundleIdentifier: bundleIdentifier,
     CFBundleName: appName,
     CFBundleShortVersionString: version,
@@ -83,6 +88,34 @@ function updateInfoPlist(): void {
   }
 
   writeFileSync(infoPlistPath, plist);
+}
+
+function writeBundleIcon(): void {
+  if (!existsSync(logoPngPath)) fail(`Expected app icon source is missing: ${logoPngPath}`);
+  rmSync(iconsetPath, { recursive: true, force: true });
+  mkdirSync(iconsetPath, { recursive: true });
+
+  const iconFiles: Array<{ size: number; scale: 1 | 2; filename: string }> = [
+    { size: 16, scale: 1, filename: 'icon_16x16.png' },
+    { size: 16, scale: 2, filename: 'icon_16x16@2x.png' },
+    { size: 32, scale: 1, filename: 'icon_32x32.png' },
+    { size: 32, scale: 2, filename: 'icon_32x32@2x.png' },
+    { size: 128, scale: 1, filename: 'icon_128x128.png' },
+    { size: 128, scale: 2, filename: 'icon_128x128@2x.png' },
+    { size: 256, scale: 1, filename: 'icon_256x256.png' },
+    { size: 256, scale: 2, filename: 'icon_256x256@2x.png' },
+    { size: 512, scale: 1, filename: 'icon_512x512.png' },
+    { size: 512, scale: 2, filename: 'icon_512x512@2x.png' }
+  ];
+
+  for (const iconFile of iconFiles) {
+    const pixels = String(iconFile.size * iconFile.scale);
+    run('sips', ['-z', pixels, pixels, logoPngPath, '--out', join(iconsetPath, iconFile.filename)]);
+  }
+
+  run('iconutil', ['-c', 'icns', iconsetPath, '-o', bundleIconPath]);
+  rmSync(iconsetPath, { recursive: true, force: true });
+  rmSync(join(appPath, 'Contents', 'Resources', 'electron.icns'), { force: true });
 }
 
 function writeRuntimePackageJson(): void {
@@ -128,6 +161,7 @@ if (existsSync(defaultElectronExecutablePath)) {
 }
 
 updateInfoPlist();
+writeBundleIcon();
 mkdirSync(appResourcesPath, { recursive: true });
 copyIntoApp('electron-main.cjs');
 copyIntoApp('dist/src');
