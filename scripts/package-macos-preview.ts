@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { arch, platform } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,7 +117,7 @@ rmSync(dmgPath, { force: true });
 mkdirSync(workRoot, { recursive: true });
 mkdirSync(releaseRoot, { recursive: true });
 
-cpSync(electronAppPath, appPath, { recursive: true });
+cpSync(electronAppPath, appPath, { recursive: true, verbatimSymlinks: true });
 rmSync(join(appPath, 'Contents', 'Resources', 'default_app.asar'), { force: true });
 rmSync(join(appPath, 'Contents', 'Resources', 'default_app.asar.unpacked'), { recursive: true, force: true });
 
@@ -136,6 +136,22 @@ copyIntoApp('src/renderer/styles.css');
 copyIntoApp('src/renderer/assets');
 copyIntoApp('LICENSE');
 writeRuntimePackageJson();
+
+function adhocSignBundle(): void {
+  const frameworksDir = join(appPath, 'Contents', 'Frameworks');
+  const entries = readdirSync(frameworksDir);
+  const helpers = entries
+    .filter((entry) => entry.endsWith('.app'))
+    .map((entry) => join(frameworksDir, entry));
+  const frameworks = entries
+    .filter((entry) => entry.endsWith('.framework'))
+    .map((entry) => join(frameworksDir, entry));
+  for (const helper of helpers) run('codesign', ['--force', '--sign', '-', helper]);
+  for (const framework of frameworks) run('codesign', ['--force', '--sign', '-', framework]);
+  run('codesign', ['--force', '--sign', '-', appPath]);
+}
+
+adhocSignBundle();
 
 if (shouldZip) {
   run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath]);
