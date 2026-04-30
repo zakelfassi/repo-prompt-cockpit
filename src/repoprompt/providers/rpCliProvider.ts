@@ -469,7 +469,7 @@ export function deriveBindingTargets(windows: RepoPromptWindow[], currentWorking
   return targets;
 }
 
-export function buildListSessionAttempts(windows: RepoPromptWindow[]): ListSessionsAttempt[] {
+export function buildListSessionAttempts(windows: RepoPromptWindow[], currentWorkingDirectory = process.cwd()): ListSessionsAttempt[] {
   const attempts: ListSessionsAttempt[] = [
     {
       id: 'unbound',
@@ -478,7 +478,7 @@ export function buildListSessionAttempts(windows: RepoPromptWindow[]): ListSessi
     }
   ];
 
-  const primaryWindow = derivePrimaryWindow(windows);
+  const primaryWindow = derivePrimaryWindow(windows, currentWorkingDirectory);
   if (primaryWindow) {
     attempts.push({
       id: `window-hidden:${primaryWindow.id}`,
@@ -494,7 +494,7 @@ export function buildListSessionAttempts(windows: RepoPromptWindow[]): ListSessi
     });
   }
 
-  for (const target of deriveBindingTargets(windows).slice(0, MAX_TARGETED_SESSION_ATTEMPTS)) {
+  for (const target of deriveBindingTargets(windows, currentWorkingDirectory).slice(0, MAX_TARGETED_SESSION_ATTEMPTS)) {
     const payload = payloadForTarget(target);
     attempts.push({
       id: target.id,

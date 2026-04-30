@@ -168,7 +168,7 @@ describe('binding target selection', () => {
   it('prioritizes current RepoPrompt-control-plane workspace/context candidates without hard-coded window ids', async () => {
     const windows = parseWindowsOutput(await readFile(fixturePath, 'utf8'));
     const targets = deriveBindingTargets(windows, controlPlaneRepoPath);
-    const attempts = buildListSessionAttempts(windows);
+    const attempts = buildListSessionAttempts(windows, controlPlaneRepoPath);
 
     expect(targets[0]).toMatchObject({ kind: 'workspace_roots' });
     expect(targets[0].repoPaths?.[0]).toBe(controlPlaneRepoPath);
