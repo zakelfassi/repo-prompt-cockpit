@@ -478,18 +478,21 @@ export function buildListSessionAttempts(windows: RepoPromptWindow[], currentWor
     }
   ];
 
-  const primaryWindow = derivePrimaryWindow(windows, currentWorkingDirectory);
-  if (primaryWindow) {
+  const seenHiddenWindowIds = new Set<number>();
+  const rankedWindows = [...windows].sort((a, b) => bindingRank(b, currentWorkingDirectory) - bindingRank(a, currentWorkingDirectory));
+  for (const window of rankedWindows.slice(0, MAX_TARGETED_SESSION_ATTEMPTS)) {
+    if (seenHiddenWindowIds.has(window.id)) continue;
+    seenHiddenWindowIds.add(window.id);
     attempts.push({
-      id: `window-hidden:${primaryWindow.id}`,
+      id: `window-hidden:${window.id}`,
       label: 'window hidden key list_sessions',
-      args: listSessionsArgs({ _windowID: primaryWindow.id, op: 'list_sessions', limit: LIST_SESSIONS_LIMIT }),
+      args: listSessionsArgs({ _windowID: window.id, op: 'list_sessions', limit: LIST_SESSIONS_LIMIT }),
       target: {
-        id: `window:${primaryWindow.id}`,
+        id: `window:${window.id}`,
         kind: 'window',
-        workspace: primaryWindow.workspace,
-        windowId: primaryWindow.id,
-        repoPaths: primaryWindow.repoPath ? [primaryWindow.repoPath] : undefined
+        workspace: window.workspace,
+        windowId: window.id,
+        repoPaths: window.repoPath ? [window.repoPath] : undefined
       }
     });
   }
@@ -518,9 +521,6 @@ function listSessionsArgs(payload: Record<string, unknown>): string[] {
   return ['-c', 'agent_manage', '-j', JSON.stringify(payload)];
 }
 
-function derivePrimaryWindow(windows: RepoPromptWindow[], currentWorkingDirectory = process.cwd()): RepoPromptWindow | undefined {
-  return [...windows].sort((a, b) => bindingRank(b, currentWorkingDirectory) - bindingRank(a, currentWorkingDirectory))[0];
-}
 
 function mergeSessions(existing: Map<string, AgentSession>, parsed: AgentSession[], target?: BindingTarget): void {
   for (const session of parsed) {
